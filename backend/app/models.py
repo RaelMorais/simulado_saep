@@ -4,7 +4,7 @@ from django.db import models
 class User(models.Model):
     name = models.CharField(max_length=255, default=' ')
     email = models.EmailField(max_length=255)
-    phone = models.CharField(max_length=255)
+    phone = models.CharField(max_length=255, default='')
 
 
 # Task model for to-do 
