@@ -1,0 +1,284 @@
+import React, { useEffect, useState } from "react";
+import { useForm, Controller } from "react-hook-form";
+import InputMask from "react-input-mask";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import axios from "axios";
+
+/* Regex */
+const regexNomeCompleto = /^[A-Za-zÀ-ÖØ-öø-ÿ]+(?:\s+[A-Za-zÀ-ÖØ-öø-ÿ]+)+$/;
+const regexEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const regexPhone = /^\(\d{2}\) \d{4,5}-\d{4}$/;
+const regexDescription = /^[\w\s.,;:!?"'()-]{1,255}$/;
+const regexNameClass = /^[A-Za-z0-9_]{1,255}$/;
+const regexDate = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
+const regexUserId = /^\d+$/;
+
+/* Schemas Zod */
+const schemaUser = z.object({
+  name: z
+    .string()
+    .min(1, "Informe seu nome")
+    .max(30, "Nome deve ter no máximo 30 caracteres")
+    .regex(regexNomeCompleto, "Digite nome completo (nome e sobrenome, sem números)"),
+  email: z
+    .string()
+    .min(1, "Informe o email")
+    .max(30, "Email deve ter no máximo 30 caracteres")
+    .regex(regexEmail, "Email inválido"),
+  phone: z
+    .string()
+    .regex(regexPhone, "Telefone inválido, use o formato (99) 99999-9999"),
+});
+
+const schemaTask = z.object({
+  description: z
+    .string()
+    .min(1, "Descrição é obrigatória")
+    .max(255, "Máximo 255 caracteres")
+    .regex(regexDescription, "Descrição contém caracteres inválidos"),
+  name_class: z
+    .string()
+    .min(1, "Nome da classe é obrigatório")
+    .max(255, "Máximo 255 caracteres")
+    .regex(regexNameClass, "Nome da classe aceita letras, números e underscore"),
+  priority: z.enum(["high", "mid", "low"]),
+  register_date: z
+    .string()
+    .regex(regexDate, "Data deve estar no formato YYYY-MM-DD válido"),
+  status: z.enum(["todo", "in_progress", "done"]),
+  user: z
+    .string()
+    .regex(regexUserId, "Usuário inválido (deve ser um número)"),
+});
+
+export function CadastroUser() {
+  const {
+    register,
+    handleSubmit,
+    control,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(schemaUser),
+  });
+
+  async function onSubmit(data) {
+    try {
+      const token = localStorage.getItem("access_token");
+      const response = await axios.post("http://127.0.0.1:8000/user/", data, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+      alert("Usuário cadastrado com sucesso!");
+      console.log("Usuário criado:", response.data);
+    } catch (error) {
+      console.error("Erro ao cadastrar usuário:", error.response?.data || error.message);
+      alert("Erro ao cadastrar usuário.");
+    }
+  }
+
+  return (
+    <div style={{ maxWidth: 500, margin: "auto", padding: 20 }}>
+      <h2>Cadastro de Usuário</h2>
+      <form onSubmit={handleSubmit(onSubmit)} noValidate>
+        {/* Nome */}
+        <div style={{ marginBottom: 12 }}>
+          <label>
+            Nome completo:
+            <input
+              {...register("name")}
+              placeholder="Nome e sobrenome"
+              style={{ width: "100%", padding: 8, marginTop: 4 }}
+            />
+          </label>
+          {errors.name && <p style={{ color: "red" }}>{errors.name.message}</p>}
+        </div>
+
+        {/* Email */}
+        <div style={{ marginBottom: 12 }}>
+          <label>
+            Email:
+            <input
+              {...register("email")}
+              type="email"
+              placeholder="email@exemplo.com"
+              style={{ width: "100%", padding: 8, marginTop: 4 }}
+            />
+          </label>
+          {errors.email && <p style={{ color: "red" }}>{errors.email.message}</p>}
+        </div>
+
+        {/* Telefone com máscara */}
+        <div style={{ marginBottom: 12 }}>
+          <label>
+            Telefone:
+            <Controller
+              control={control}
+              name="phone"
+              render={({ field }) => (
+                <InputMask
+                  {...field}
+                  mask="(99) 99999-9999"
+                  placeholder="(99) 99999-9999"
+                  style={{ width: "100%", padding: 8, marginTop: 4 }}
+                />
+              )}
+            />
+          </label>
+          {errors.phone && <p style={{ color: "red" }}>{errors.phone.message}</p>}
+        </div>
+
+        <button type="submit" style={{ padding: "10px 15px", cursor: "pointer" }}>
+          Cadastrar Usuário
+        </button>
+      </form>
+    </div>
+  );
+}
+
+export function CadastroTask() {
+  const [usuarios, setUsuarios] = useState([]);
+  const {
+    register,
+    handleSubmit,
+    control,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(schemaTask),
+  });
+
+  useEffect(() => {
+    async function fetchUsers() {
+      try {
+        const token = localStorage.getItem("access_token");
+        const res = await axios.get("http://127.0.0.1:8000/user/", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setUsuarios(res.data);
+      } catch (error) {
+        console.error("Erro ao buscar usuários:", error);
+      }
+    }
+    fetchUsers();
+  }, []);
+
+  async function onSubmit(data) {
+    try {
+      const token = localStorage.getItem("access_token");
+      const response = await axios.post("http://127.0.0.1:8000/task/", data, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+      alert("Task cadastrada com sucesso!");
+      console.log("Task criada:", response.data);
+    } catch (error) {
+      console.error("Erro ao cadastrar task:", error.response?.data || error.message);
+      alert("Erro ao cadastrar task.");
+    }
+  }
+
+  return (
+    <div style={{ maxWidth: 600, margin: "auto", padding: 20 }}>
+      <h2>Cadastro de Task</h2>
+      <form onSubmit={handleSubmit(onSubmit)} noValidate>
+        {/* Description */}
+        <div style={{ marginBottom: 12 }}>
+          <label>
+            Descrição:
+            <input
+              {...register("description")}
+              placeholder="Descrição da tarefa"
+              style={{ width: "100%", padding: 8, marginTop: 4 }}
+            />
+          </label>
+          {errors.description && <p style={{ color: "red" }}>{errors.description.message}</p>}
+        </div>
+
+        {/* Name Class */}
+        <div style={{ marginBottom: 12 }}>
+          <label>
+            Nome da Classe:
+            <input
+              {...register("name_class")}
+              placeholder="Nome da classe (ex: MinhaClasse_01)"
+              style={{ width: "100%", padding: 8, marginTop: 4 }}
+            />
+          </label>
+          {errors.name_class && <p style={{ color: "red" }}>{errors.name_class.message}</p>}
+        </div>
+
+        {/* Priority */}
+        <div style={{ marginBottom: 12 }}>
+          <label>
+            Prioridade:
+            <select {...register("priority")} defaultValue="low" style={{ width: "100%", padding: 8, marginTop: 4 }}>
+              <option value="high">Alta</option>
+              <option value="mid">Média</option>
+              <option value="low">Baixa</option>
+            </select>
+          </label>
+          {errors.priority && <p style={{ color: "red" }}>{errors.priority.message}</p>}
+        </div>
+
+        {/* Register Date com máscara */}
+        <div style={{ marginBottom: 12 }}>
+          <label>
+            Data de Registro:
+            <Controller
+              control={control}
+              name="register_date"
+              render={({ field }) => (
+                <InputMask
+                  {...field}
+                  mask="9999-99-99"
+                  placeholder="YYYY-MM-DD"
+                  style={{ width: "100%", padding: 8, marginTop: 4 }}
+                />
+              )}
+            />
+          </label>
+          {errors.register_date && <p style={{ color: "red" }}>{errors.register_date.message}</p>}
+        </div>
+
+        {/* Status */}
+        <div style={{ marginBottom: 12 }}>
+          <label>
+            Status:
+            <select {...register("status")} defaultValue="todo" style={{ width: "100%", padding: 8, marginTop: 4 }}>
+              <option value="todo">To Do</option>
+              <option value="in_progress">In Progress</option>
+              <option value="done">Done</option>
+            </select>
+          </label>
+          {errors.status && <p style={{ color: "red" }}>{errors.status.message}</p>}
+        </div>
+
+        {/* User select */}
+        <div style={{ marginBottom: 12 }}>
+          <label>
+            Usuário:
+            <select {...register("user")} style={{ width: "100%", padding: 8, marginTop: 4 }} defaultValue="">
+              <option value="" disabled>
+                Selecione um usuário
+              </option>
+              {usuarios.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          {errors.user && <p style={{ color: "red" }}>{errors.user.message}</p>}
+        </div>
+
+        <button type="submit" style={{ padding: "10px 15px", cursor: "pointer" }}>
+          Cadastrar Task
+        </button>
+      </form>
+    </div>
+  );
+}
