@@ -22,5 +22,6 @@ class TaskSerializer(serializers.ModelSerializer):
             'register_date', 
             'status', 
             'user', 
-            'user_name'
+            'user_name', 
+            'update_date'
         ]
